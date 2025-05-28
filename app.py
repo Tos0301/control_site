@@ -12,7 +12,7 @@ app.secret_key = 'secret_key'
 
 scopes = ['https://www.googleapis.com/auth/spreadsheets']
 service_account_path = 'encoded.txt'  # base64でエンコードされたサービスアカウントキー
-spreadsheet_id = '1KNZ49or81ECH9EVXYeKjAv-ooSnXMbP3dC10e2gQR3g'
+spreadsheet_id = '1gdIqGyr70vfWcHdE9Jc0nRH5ngHqbhH-096IVKk65JY'
 
 with open(service_account_path, 'r') as f:
     encoded = f.read()
