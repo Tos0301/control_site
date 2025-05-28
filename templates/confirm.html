@@ -5,11 +5,14 @@
     <title>注文内容の確認</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* ✅ 左カラム固定スタイル */
+        body{
+            margin-right: 280px;
+        }
+        /* ✅ 右固定カラム */
         .fixed-sidebar {
             position: fixed;
             top: 0;
-            left: 0;
+            right: 0;
             width: 260px;
             height: 100vh;
             background-color: #fff;
@@ -21,9 +24,8 @@
             z-index: 1000;
         }
 
-        /* ✅ 右コンテンツ */
+        /* ✅ メインコンテンツ */
         .main-content {
-            margin-left: 280px;
             padding: 40px;
         }
 
@@ -38,7 +40,7 @@
 </head>
 <body class="bg-light">
 
-<!-- ✅ 左カラム：点数・合計・操作 -->
+<!-- ✅ 右カラム：点数・合計・操作 -->
 <div class="fixed-sidebar">
     <div>
         <h5>点数：{{ cart_count }}点</h5>
@@ -54,7 +56,7 @@
     </div>
 </div>
 
-<!-- ✅ 右カラム：確認内容 -->
+<!-- ✅ 左・中央エリア：確認内容 -->
 <div class="main-content">
     <h2 class="mb-4">注文内容の確認</h2>
 
