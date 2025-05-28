@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: experiment-site
+    name: control-site
     env: python
     buildCommand: ""
     startCommand: python app.py
