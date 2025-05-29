@@ -56,12 +56,19 @@ def input_id():
 
 @app.route('/set_id', methods=['POST'])
 def set_participant_id():
-    participant_id = request.form.get("participant_id")
-    if participant_id:
-        session["participant_id"] = participant_id
-        log_action("ID入力", page="ID")
-        return redirect(url_for("index"))
-    return redirect(url_for("input_id"))
+    prefix = request.form.get("prefix", "").upper()
+    birthdate = request.form.get("birthdate", "")
+    suffix = request.form.get("suffix", "")
+
+    # 安全チェック（必要に応じて追加可能）
+    if not (prefix and birthdate and suffix):
+        return redirect(url_for("input_id"))
+
+    participant_id = f"{prefix}{birthdate}{suffix}"
+    session["participant_id"] = participant_id
+    log_action("ID入力", page="ID")
+    return redirect(url_for("index"))
+
 
 @app.route('/index', methods=['GET', 'POST'])
 def index():
