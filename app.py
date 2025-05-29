@@ -67,7 +67,14 @@ def set_participant_id():
     participant_id = f"{prefix}{birthdate}{suffix}"
     session["participant_id"] = participant_id
     log_action("ID入力", page="ID")
-    return redirect(url_for("index"))
+    return redirect(url_for("confirm_id"))
+
+@app.route('/confirm_id', methods=['GET', 'POST'])
+def confirm_id():
+    participant_id = session.get("participant_id", "")
+    if not participant_id:
+        return redirect(url_for("input_id"))
+    return render_template("confirm_id.html", participant_id=participant_id)
 
 
 @app.route('/index', methods=['GET', 'POST'])
