@@ -5,83 +5,68 @@
     <title>{{ product.name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body{
+        body {
             margin-right: 240px;
         }
         .container {
-            display: flex;       
-            gap: 40px;
+            display: flex;
+            flex-direction: column;
             padding: 40px;
-            max-width: 100%;
             box-sizing: border-box;
-            overflow-x: hidden;
+        }
+        .main-section {
+            display: flex;
+            gap: 40px;
+        }
+        .left-column {
+            flex: 1;
+            max-width: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .left-column img {
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #fff;
         }
 
-        /* 左カラム固定表示 */
+        .center-column {
+            flex: 1;
+        }
+        .product-detail-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+        }
         .right-fixed-column {
             width: 220px;
             position: fixed;
             top: 0;
             right: 0;
             height: 100vh;
-            padding: 40px 20px 20px 20px;
+            padding: 40px 20px;
             background-color: #f8f9fa;
             display: flex;
             flex-direction: column;
             z-index: 10;
             overflow: auto;
         }
-
-        .right-fixed-column .top-section {
-            flex-grow: 1;
-        }
-
         .right-fixed-column .bottom-buttons {
             margin-top: auto;
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
-
-
-        /* 右側の全体（中央～詳細） */
-        .content-area {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .center-column {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .right-column {
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .product-img {
-            max-width: 60%;
-            height: 300px;
-            object-fit: contain;
-            margin: 0 auto;
-        }
-
         .cart-button {
             width: 100%;
         }
-
         .badge {
             font-size: 12px;
             padding: 4px 6px;
-        }
-
-        .product-detail-section {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #ccc;
-            font-size: 15px;
         }
     </style>
 </head>
@@ -120,24 +105,27 @@
     
     <!-- 右側全体：画像・スペック・詳細 -->
     <div class="content-area">
-        <div class="center-column">
-            <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}" class="product-img">
-        </div>
+        <div class="main-section">
+            <div class="left-column">
+                <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}">
+            </div>
 
-        <div class="right-column">
-            <h2>{{ product.name }}</h2>
-            <h4 class="text-muted">¥{{ product.price }}</h4>
-            <h5 class="mt-4">商品スペック</h5>
-            <p style="white-space: pre-line;">{{ specs }}</p>
+            <div class="center-column">
+                <h2>{{ product.name }}</h2>
+                <h4 class="text-muted">¥{{ product.price }}</h4>
+                <h5 class="mt-4">商品スペック</h5>
+                <p style="white-space: pre-line;">{{ specs }}</p>
+            </div>
         </div>
 
         {% if product.detail %}
-        <div class="product-detail-section bg-light border rounded p-4">
+        <div class="product-detail-section bg-light border rounded p-4 mt-4">
             <h5>商品詳細</h5>
             <p style="white-space: pre-line;">{{ product.detail | replace('\\n', '\n') }}</p>
         </div>
         {% endif %}
     </div>
+
 
     
 </div>
