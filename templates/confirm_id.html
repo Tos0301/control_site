@@ -43,14 +43,16 @@
             購入確定後、5分程度のGoogle Formに回答していただきます。
         </p>
 
-        <div class="btn-area">
-            <form method="POST" action="{{ url_for('index') }}">
-                <button type="submit" class="btn btn-primary w-100">実験を開始する</button>
+        <div class="d-flex flex-column align-items-center mt-4">
+            <form method="POST" action="{{ url_for('index') }}" class="w-100" style="max-width: 300px;">
+                <button type="submit" class="btn btn-primary w-100 mb-2">実験を開始する</button>
             </form>
-            <form method="GET" action="{{ url_for('input_id') }}">
+
+            <form method="GET" action="{{ url_for('input_id') }}" class="w-100" style="max-width: 300px;">
                 <button type="submit" class="btn btn-outline-secondary w-100">IDを再設定する</button>
             </form>
         </div>
+
     </div>
 </body>
 </html>
