@@ -186,8 +186,9 @@ function updateImageByColor() {
     const imageEl = document.getElementById("product-image");
 
     {% if product.image %}
-        // 例: mag_a_red_1.jpg の場合に mag_a を取り出す
-        const imagePrefix = "{{ product.image.split('_')[: -2] | join('_') }}";
+        {% set image_parts = product.image.rsplit('_', 2) %}
+        const imagePrefix = "{{ image_parts[0] if image_parts|length > 2 else product.image.rsplit('.', 1)[0] }}";
+
     {% else %}
         const imagePrefix = "noimage";
     {% endif %}
