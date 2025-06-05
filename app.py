@@ -23,21 +23,35 @@ credentials = Credentials.from_service_account_info(service_info, scopes=scopes)
 gc = gspread.authorize(credentials)
 worksheet = gc.open_by_key(spreadsheet_id).sheet1
 
-def log_action(action, page="", total_price=0, products=None, quantities=None, subtotals=None):
+def log_action(action, page="", total_price=0, products=None, quantities=None, subtotals=None, colors=None, sizes=None):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     participant_id = session.get("participant_id", "")
     products = products or []
     quantities = quantities or []
     subtotals = subtotals or []
+    colors = colors or []
+    sizes = sizes or []
+    
     worksheet.append_row([
         now, participant_id, action, total_price,
-        ",".join(products), ",".join(map(str, quantities)), ",".join(map(str, subtotals)),
+        ",".join(products),
+        ",".join(map(str, quantities)),
+        ",".join(map(str, subtotals)),
+        ",".join(colors),
+        ",".join(sizes),
         page
     ])
 
 def load_products():
-    df = pd.read_csv("data/products.csv", dtype=str)
-    return df.to_dict(orient="records")
+    df = pd.read_csv("data/products.csv", dtype=str).fillna("")  # 欠損を空文字で埋める
+    products = df.to_dict(orient="records")
+    
+    for product in products:
+        product['colors'] = product['colors'].split('|') if product['colors'] else []
+        product['sizes'] = product['sizes'].split('|') if product['sizes'] else []
+    
+    return products
+
 
 def load_specs():
     specs = {}
@@ -49,6 +63,11 @@ def load_specs():
             specs[product_id] = row["specs"]
     return specs
 
+@app.route('/reset_session')
+def reset_session():
+    session.clear()
+    return "セッションを初期化しました"
+
 
 @app.route('/')
 def input_id():
@@ -59,14 +78,16 @@ def set_participant_id():
     prefix = request.form.get("prefix", "").upper()
     birthdate = request.form.get("birthdate", "")
     suffix = request.form.get("suffix", "")
-
-    # 安全チェック（必要に応じて追加可能）
+    
     if not (prefix and birthdate and suffix):
         return redirect(url_for("input_id"))
 
     participant_id = f"{prefix}{birthdate}{suffix}"
     session["participant_id"] = participant_id
-    log_action("ID入力", page="ID")
+
+    # 任意：ログを記録
+    log_action("ID入力", page="ID")  # log_action関数があれば
+
     return redirect(url_for("confirm_id"))
 
 @app.route('/confirm_id', methods=['GET', 'POST'])
@@ -76,11 +97,12 @@ def confirm_id():
         return redirect(url_for("input_id"))
     return render_template("confirm_id.html", participant_id=participant_id)
 
-
 @app.route('/index', methods=['GET', 'POST'])
 def index():
     products = load_products()
-    cart_count = sum(session.get("cart", {}).values())
+    cart = session.get("cart", [])
+    cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
+
     if request.method == 'POST':
         log_action("商品一覧表示", page="一覧")
     return render_template('index.html', products=products, cart_count=cart_count)
@@ -90,14 +112,28 @@ def product_detail(product_id):
     products = load_products()
     product = next((p for p in products if p["id"] == product_id), None)
     specs_data = load_specs()
-    cart_count = sum(session.get("cart", {}).values())
+    cart = session.get("cart", [])
+    cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
+
+    image_list = []
+    if product and "image" in product:
+        image_prefix = product["image"].rsplit(".", 1)[0]  # mug01
+        image_folder = os.path.join("static", "images")
+        for i in range(1, 6):  # 最大5枚程度
+            filename = f"{image_prefix}_{i}.jpg"
+            path = os.path.join(image_folder, filename)
+            if os.path.exists(path):
+                image_list.append(filename)
+
     if request.method == 'POST':
         log_action(f"商品詳細表示: {product_id}", page="詳細")
+    
     return render_template(
         'product.html',
         product=product,
         cart_count=cart_count,
-        specs=specs_data.get(product_id, "(商品説明がありません)")  # ← ここが重要
+        specs=specs_data.get(product_id, "(商品説明がありません)"),
+        image_list=image_list
     )
 
 
@@ -120,9 +156,34 @@ def add_to_cart():
     products = load_products()
     product = next((p for p in products if p["id"] == product_id), None)
 
-    cart = session.get("cart", {})
-    cart[product_id] = cart.get(product_id, 0) + quantity
-    session["cart"] = cart
+    cart = session.get("cart", [])
+
+    # 新しく追加するアイテム
+    new_item = {
+        "product_id": product_id,
+        "quantity": quantity,
+        "color": request.form.get("color", ""),
+        "size": request.form.get("size", "")
+    }
+
+    # 同じ商品・色・サイズの組み合わせがあれば統合
+    found = False
+    for item in cart:
+        if isinstance(item, dict) and \
+            item.get("product_id") == new_item["product_id"] and \
+            item.get("color") == new_item["color"] and \
+            item.get("size") == new_item["size"]:
+            item["quantity"] += quantity
+            found = True
+            break
+
+
+    if not found:
+        cart.append(new_item)
+
+    session["cart"] = [item for item in cart if isinstance(item, dict) and 'product_id' in item]
+
+
 
     if product:
         name = product["name"]
@@ -136,7 +197,7 @@ def add_to_cart():
 
     # ✅ 非同期(fetch)リクエストの場合はJSONで返す
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        cart_count = sum(cart.values())
+        cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
         return jsonify({"cart_count": cart_count})
 
     # ✅ 通常遷移のときはリダイレクト（使っていないなら return "", 204 のままでもOK）
@@ -147,26 +208,53 @@ def add_to_cart():
 @app.route('/cart', methods=['GET', 'POST'])
 def cart():
     products = load_products()
-    cart = session.get("cart", {})
+    cart = session.get("cart", [])
     cart_items = []
     total = 0
-    for product_id, quantity in cart.items():
-        product = next((p for p in products if p["id"] == product_id), None)
+
+    for item in cart:
+        if not isinstance(item, dict):
+            continue
+
+        product = next((p for p in products if p["id"] == item["product_id"]), None)
         if product:
-            subtotal = int(product["price"]) * quantity
+            subtotal = int(product["price"]) * item["quantity"]
             total += subtotal
+
+            # ✅ color に基づく画像ファイル名を構築
+            color = item.get("color", "").strip().lower()
+            image_base = product["image"].rsplit(".", 1)[0]  # "mag_c" を取得
+            
+            if color:
+                filename = f"{image_base}_{color}_1.jpg"
+            else:
+                filename = f"{image_base}_1.jpg"
+            image_path = f"images/{image_base}_{color}_1.jpg"
+
             cart_items.append({
                 "product": product,
-                "quantity": quantity,
-                "subtotal": subtotal
+                "quantity": item["quantity"],
+                "subtotal": subtotal,
+                "color": color,
+                "size": item.get("size", ""),
+                "image_path": image_path  # ✅ ここが cart.html で参照される
             })
-    cart_count = sum(cart.values())
+
+    
+    cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
+    
     if request.method == 'POST':
         log_action("カート表示", page="カート", total_price=total,
                    products=[item["product"]["name"] for item in cart_items],
                    quantities=[item["quantity"] for item in cart_items],
                    subtotals=[item["subtotal"] for item in cart_items])
-    return render_template('cart.html', cart_items=cart_items, total=total, cart_count=cart_count)
+    
+    return render_template(
+        'cart.html', 
+        cart_items=cart_items, 
+        total=total, 
+        cart_count=cart_count,
+    )
 
 @app.route('/back_to_index', methods=['POST'])
 def back_to_index():
@@ -177,27 +265,38 @@ def back_to_index():
 @app.route('/update_cart', methods=['POST'])
 def update_cart():
     product_id = request.form.get("product_id")
+    color = request.form.get("color", "")
+    size = request.form.get("size", "")
     try:
         quantity = int(request.form.get("quantity", 1))
     except (ValueError, TypeError):
         quantity = 1  # 万が一無効な値が来たら1に戻す
 
-    cart = session.get("cart", {})
+    cart = session.get("cart", [])
+    new_cart = []
+    for item in cart:
+        
+        if not isinstance(item, dict):
+            continue  # 不正なデータはスキップ
 
-    if quantity > 0:
-        cart[product_id] = quantity
-    else:
-        cart.pop(product_id, None)  # 存在しない場合でもエラーにしない
+        if item["product_id"] == product_id and item["color"] == color and item["size"] == size:
+            if quantity > 0:
+                item["quantity"] = quantity
+                new_cart.append(item)
 
-    session["cart"] = cart
+        else:
+            new_cart.append(item)  # 存在しない場合でもエラーにしない
+
+    session["cart"] = new_cart
     log_action(f"数量更新: {product_id} → {quantity}", page="カート")
     return redirect(url_for("cart"))
 
 @app.route('/cart_count', methods=['GET'])
 def cart_count():
-    cart = session.get("cart", {})
-    count = sum(cart.values())
+    cart = session.get("cart", [])
+    count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
     return jsonify({'count': count})
+
 
 
 
@@ -206,9 +305,9 @@ def go_confirm():
     log_action("確認画面へ進む", page="カート")
     return redirect(url_for('confirm'))
 
-@app.route('/back_to_index', methods=['POST'])
-def go_index():
-    return redirect(url_for('index'))
+#@app.route('/back_to_index', methods=['POST'])
+#def go_index():
+    #return redirect(url_for('index'))
 
 @app.route('/back_to_cart', methods=['POST'])
 def back_to_cart():
@@ -217,21 +316,29 @@ def back_to_cart():
 
 @app.route('/confirm', methods=['GET'])
 def confirm():
-    cart = session.get("cart", {})
+    cart = session.get("cart", [])
     products = load_products()
 
     cart_items = []
     total = 0
     cart_count = 0
 
-    for product_id, quantity in cart.items():
+    for item in cart:
+        if not isinstance(item, dict):
+            continue  # 不正なデータはスキップ
+
+        product_id = item['product_id']
+        quantity = item['quantity']
         product = next((p for p in products if p["id"] == product_id), None)
+
         if product:
             subtotal = int(product["price"]) * quantity
             cart_items.append({
-                "product": product,  # ← ここが重要
+                "product": product,
                 "quantity": quantity,
-                "subtotal": subtotal
+                "subtotal": subtotal,
+                "color": item.get("color", ""),
+                "size": item.get("size", "")
             })
             total += subtotal
             cart_count += quantity
@@ -242,7 +349,8 @@ def confirm():
 
 @app.route('/complete', methods=['POST'])
 def complete():
-    cart = session.get("cart", {})
+    
+    cart = session.get("cart", [])
     products = load_products()
 
     product_names = []
@@ -251,8 +359,14 @@ def complete():
 
     total_price = 0
 
-    for product_id, quantity in cart.items():
+    for item in cart:
+        if not isinstance(item, dict):
+            continue  # 不正なデータはスキップ
+        
+        product_id = item['product_id']
+        quantity = item['quantity']
         product = next((p for p in products if p["id"] == product_id), None)
+
         if product:
             name = product["name"]
             price = int(product["price"])
@@ -263,10 +377,19 @@ def complete():
             subtotals.append(subtotal)
             total_price += subtotal
 
-    log_action("購入確定", total_price=total_price,
-               products=product_names, quantities=quantities, subtotals=subtotals, page="確認")
+    colors = [item.get("color", "") for item in cart]
+    sizes = [item.get("size", "") for item in cart]
 
-    session["cart"] = {}  # ✅ カートを空にするのはログ記録のあと
+    log_action("購入確定", total_price=total_price,
+            products=product_names,
+            quantities=quantities,
+            subtotals=subtotals,
+            colors=colors,
+            sizes=sizes,
+            page="確認")
+
+
+    session["cart"] = []  # ✅ カートを空にするのはログ記録のあと
 
     return redirect(url_for("thanks"))
 

@@ -82,6 +82,25 @@
         <div class="bottom-buttons">
             <form id="add-to-cart-form" method="POST">
                 <input type="hidden" name="product_id" value="{{ product.id }}">
+
+                {% if product.colors %}
+                <label for="color">カラー:</label>
+                <select name="color" id="color" class="form-control mb-2">
+                    {% for color in product.colors %}
+                    <option value="{{ color }}">{{ color }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+
+                {% if product.sizes %}
+                <label for="size">サイズ:</label>
+                <select name="size" class="form-control mb-2">
+                    {% for size in product.sizes %}
+                    <option value="{{ size }}">{{ size }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+
                 <input type="number" name="quantity" value="1" min="1" class="form-control mb-2">
                 <button type="submit" class="btn btn-success cart-button">カートに追加</button>
             </form>
@@ -106,9 +125,19 @@
     <!-- 右側全体：画像・スペック・詳細 -->
     <div class="content-area">
         <div class="main-section">
-            <div class="left-column">
-                <img src="{{ url_for('static', filename='images/' + product.image) }}" alt="{{ product.name }}">
+            <div class="left-column position-relative text-center">
+                {% if image_list|length > 1 %}
+                <button id="prev-btn" class="btn btn-light position-absolute start-0 top-50 translate-middle-y">←</button>
+                <button id="next-btn" class="btn btn-light position-absolute end-0 top-50 translate-middle-y">→</button>
+                {% endif %}
+
+                <img id="product-image"
+                     src="{{ url_for('static', filename='images/' + image_list[0]) }}"
+                     alt="{{ product.name }}"
+                     class="img-fluid"
+                     style="max-height: 400px; object-fit: contain; border: 1px solid #ddd; padding: 10px; background-color: #fff;">
             </div>
+
 
             <div class="center-column">
                 <h2>{{ product.name }}</h2>
@@ -182,6 +211,37 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    const imageList = {{ image_list | tojson }};
+    let currentIndex = 0;
+    const imageEl = document.getElementById("product-image");
+
+    const updateImage = () => {
+        imageEl.onerror = () => {
+            imageEl.src = '/static/images/fallback.jpg';  // 代替画像（任意で設置）
+        };
+        imageEl.src = `/static/images/${imageList[currentIndex]}`;
+    };
+
+    const prevBtn = document.getElementById("prev-btn");
+    const nextBtn = document.getElementById("next-btn");
+
+    if (prevBtn) {
+        prevBtn.addEventListener("click", () => {
+            currentIndex = (currentIndex - 1 + imageList.length) % imageList.length;
+            updateImage();
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener("click", () => {
+            currentIndex = (currentIndex + 1) % imageList.length;
+            updateImage();
+        });
+    }
+});
+
 </script>
 
 </body>
