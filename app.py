@@ -115,26 +115,35 @@ def product_detail(product_id):
     cart = session.get("cart", [])
     cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
 
+    base_prefix = "noimage"
     image_list = []
-    if product and "image" in product:
-        image_prefix = product["image"].rsplit(".", 1)[0]  # mug01
-        image_folder = os.path.join("static", "images")
-        for i in range(1, 6):  # 最大5枚程度
-            filename = f"{image_prefix}_{i}.jpg"
-            path = os.path.join(image_folder, filename)
-            if os.path.exists(path):
-                image_list.append(filename)
+
+    if product and product.get("image"):
+        base_prefix = product["image"].rsplit(".", 1)[0]  # 例: "towel_b"
+        color_list = product.get("colors", [])
+        default_color = color_list[0] if color_list else ""
+
+        # 1枚目：カラーバリエーション画像（towel_b_sand-beige_1.jpg）
+        first_image = f"{base_prefix}_{default_color}_1.jpg"
+        image_list.append(first_image)
+
+        # 2枚目以降：共通画像（towel_b_2.jpg, towel_b_3.jpg, ...）
+        for i in range(2, 6):  # 2〜5枚目まで
+            filename = f"{base_prefix}_{i}.jpg"
+            image_list.append(filename)
 
     if request.method == 'POST':
         log_action(f"商品詳細表示: {product_id}", page="詳細")
-    
+
     return render_template(
         'product.html',
         product=product,
         cart_count=cart_count,
         specs=specs_data.get(product_id, "(商品説明がありません)"),
-        image_list=image_list
+        image_list=image_list,
+        base_prefix=base_prefix  # ← HTML に渡す
     )
+
 
 
 @app.route('/go_product', methods=['POST'])
