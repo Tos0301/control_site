@@ -6,47 +6,27 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            margin-right: 240px;
+            margin-left: 240px;
         }
+
         .container {
             display: flex;
             flex-direction: column;
             padding: 40px;
             box-sizing: border-box;
         }
+
         .main-section {
             display: flex;
             gap: 40px;
         }
-        .left-column {
-            flex: 1;
-            max-width: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .left-column img {
-            max-width: 100%;
-            max-height: 400px;
-            object-fit: contain;
-            border: 1px solid #ddd;
-            padding: 10px;
-            background-color: #fff;
-        }
 
-        .center-column {
-            flex: 1;
-        }
-        .product-detail-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ccc;
-        }
-        .right-fixed-column {
+        .left-fixed-column {
             width: 220px;
             position: fixed;
             top: 0;
-            right: 0;
+            left: 0;
+            justify-content: space-between;
             height: 100vh;
             padding: 40px 20px;
             background-color: #f8f9fa;
@@ -55,15 +35,42 @@
             z-index: 10;
             overflow: auto;
         }
-        .right-fixed-column .bottom-buttons {
+
+        .left-fixed-column .bottom-buttons {
             margin-top: auto;
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
+
+        .image-column {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 50%;
+        }
+
+        .image-column img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .info-column {
+            flex: 1;
+        }
+
+        .product-detail-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+        }
+
         .cart-button {
             width: 100%;
         }
+
         .badge {
             font-size: 12px;
             padding: 4px 6px;
@@ -72,97 +79,89 @@
 </head>
 <body class="bg-light">
 
+<div class="left-fixed-column">
+    <div class="top-section">
+        <h5>価格：¥{{ product.price }}</h5>
+    </div>
+
+    <div class="bottom-buttons">
+        <form id="add-to-cart-form" method="POST" class="mb-2">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+
+            {% if product.colors %}
+            <label for="color">カラー:</label>
+            <select name="color" id="color" class="form-control mb-2" onchange="updateImageByColor()">
+                {% for color in product.colors %}
+                <option value="{{ color }}" {% if loop.first %}selected{% endif %}>{{ color }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
+            {% if product.sizes %}
+            <label for="size">サイズ:</label>
+            <select name="size" class="form-control mb-2">
+                {% for size in product.sizes %}
+                <option value="{{ size }}">{{ size }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
+            <input type="number" name="quantity" value="1" min="1" class="form-control mb-2">
+            <button type="submit" class="btn btn-success cart-button">カートに追加</button>
+        </form>
+
+        <form method="POST" action="{{ url_for('go_cart') }}" class="mt-2 position-relative">
+            <button type="submit" class="btn btn-outline-primary cart-button">
+                カートを見る
+                <span id="cart-badge"
+                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                    style="display: {{ 'inline-block' if cart_count > 0 else 'none' }};">
+                    {{ cart_count }}
+                </span>
+            </button>
+        </form>
+
+
+        <form method="POST" action="{{ url_for('back_to_index') }}" class="mt-2">
+            <button type="submit" class="btn btn-outline-secondary cart-button">← 商品一覧へ戻る</button>
+        </form>
+    </div>
+</div>
+
 <div class="container">
+    <div class="main-section">
+        <div class="image-column position-relative text-center">
+            {% if image_list|length > 1 %}
+            <button id="prev-btn" class="btn btn-light position-absolute start-0 top-50 translate-middle-y">←</button>
+            <button id="next-btn" class="btn btn-light position-absolute end-0 top-50 translate-middle-y">→</button>
+            {% endif %}
 
-    <div class="right-fixed-column">
-        <div class="top-section">
-            <h5>価格：¥{{ product.price }}</h5>
+            <img id="product-image"
+                 src="{{ url_for('static', filename='images/' + image_list[0]) }}"
+                 alt="{{ product.name }}"
+                 class="img-fluid"
+                 style="max-height: 400px; object-fit: contain;">
         </div>
 
-        <div class="bottom-buttons">
-            <form id="add-to-cart-form" method="POST">
-                <input type="hidden" name="product_id" value="{{ product.id }}">
-
-                {% if product.colors %}
-                <label for="color">カラー:</label>
-                <select name="color" id="color" class="form-control mb-2" onchange="updateImageByColor()">
-                    {% for color in product.colors %}
-                    <option value="{{ color }}">{{ color }}</option>
-                    {% endfor %}
-                </select>
-                {% endif %}
-
-                {% if product.sizes %}
-                <label for="size">サイズ:</label>
-                <select name="size" class="form-control mb-2">
-                    {% for size in product.sizes %}
-                    <option value="{{ size }}">{{ size }}</option>
-                    {% endfor %}
-                </select>
-                {% endif %}
-
-                <input type="number" name="quantity" value="1" min="1" class="form-control mb-2">
-                <button type="submit" class="btn btn-success cart-button">カートに追加</button>
-            </form>
-
-            <form method="POST" action="{{ url_for('go_cart') }}" class="mt-2 position-relative">
-                <button type="submit" class="btn btn-outline-primary cart-button">
-                    カートを見る
-                    <span id="cart-badge"
-                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                        style="display: {{ 'inline-block' if cart_count > 0 else 'none' }};">
-                        {{ cart_count }}
-                    </span>
-                </button>
-            </form>
-
-            <form method="POST" action="{{ url_for('back_to_index') }}" class="mt-2">
-                <button type="submit" class="btn btn-outline-secondary cart-button">← 商品一覧へ戻る</button>
-            </form>
+        <div class="info-column">
+            <h2>{{ product.name }}</h2>
+            <h4 class="text-muted">¥{{ product.price }}</h4>
+            <h5 class="mt-4">商品スペック</h5>
+            <p style="white-space: pre-line;">{{ specs }}</p>
         </div>
     </div>
-    
-    <!-- 右側全体：画像・スペック・詳細 -->
-    <div class="content-area">
-        <div class="main-section">
-            <div class="left-column position-relative text-center">
-                {% if image_list|length > 1 %}
-                <button id="prev-btn" class="btn btn-light position-absolute start-0 top-50 translate-middle-y">←</button>
-                <button id="next-btn" class="btn btn-light position-absolute end-0 top-50 translate-middle-y">→</button>
-                {% endif %}
 
-                <img id="product-image"
-                     src="{{ url_for('static', filename='images/' + image_list[0]) }}"
-                     alt="{{ product.name }}"
-                     class="img-fluid"
-                     style="max-height: 400px; object-fit: contain; border: 1px solid #ddd; padding: 10px; background-color: #fff;">
-            </div>
-
-
-            <div class="center-column">
-                <h2>{{ product.name }}</h2>
-                <h4 class="text-muted">¥{{ product.price }}</h4>
-                <h5 class="mt-4">商品スペック</h5>
-                <p style="white-space: pre-line;">{{ specs }}</p>
-            </div>
-        </div>
-
-        {% if product.detail %}
-        <div class="product-detail-section bg-light border rounded p-4 mt-4">
-            <h5>商品詳細</h5>
-            <p style="white-space: pre-line;">{{ product.detail | replace('\\n', '\n') }}</p>
-        </div>
-        {% endif %}
+    {% if product.detail %}
+    <div class="product-detail-section bg-light border rounded p-4 mt-4">
+        <h5>商品詳細</h5>
+        <p style="white-space: pre-line;">{{ product.detail | replace('\\n', '\n') }}</p>
     </div>
-
-
-    
+    {% endif %}
 </div>
 
 <script>
 let currentIndex = 0;
 let imageList = {{ image_list | tojson }};
-const basePrefix = "{{ base_prefix }}";
 
 function fetchCartCountAndUpdateBadge() {
     fetch("/cart_count")
@@ -184,6 +183,12 @@ function updateImageByColor() {
     const color = document.getElementById("color")?.value;
     const imageEl = document.getElementById("product-image");
 
+    {% if product.image %}
+        const basePrefix = "{{ base_prefix }}";
+    {% else %}
+        const basePrefix = "noimage";
+    {% endif %}
+
     imageList = [
         `${basePrefix}_${color}_1.jpg`,
         `${basePrefix}_2.jpg`,
@@ -198,6 +203,8 @@ function updateImageByColor() {
         imageEl.src = `/static/images/fallback.jpg`;
     };
 }
+
+
 
 document.addEventListener("DOMContentLoaded", function () {
     updateImageByColor();
@@ -227,9 +234,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const updateImage = () => {
         imageEl.src = `/static/images/${imageList[currentIndex]}`;
-        imageEl.onerror = () => {
-            imageEl.src = `/static/images/fallback.jpg`;
-        };
     };
 
     if (prevBtn) {
@@ -247,5 +251,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 });
 </script>
-</html>
 
+</body>
+</html>

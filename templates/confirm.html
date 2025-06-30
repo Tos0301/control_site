@@ -5,14 +5,11 @@
     <title>注文内容の確認</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body{
-            margin-right: 280px;
-        }
-        /* ✅ 右固定カラム */
+        /* ✅ 左カラム固定スタイル */
         .fixed-sidebar {
             position: fixed;
             top: 0;
-            right: 0;
+            left: 0;
             width: 260px;
             height: 100vh;
             background-color: #fff;
@@ -24,8 +21,9 @@
             z-index: 1000;
         }
 
-        /* ✅ メインコンテンツ */
+        /* ✅ 右コンテンツ */
         .main-content {
+            margin-left: 280px;
             padding: 40px;
         }
 
@@ -40,7 +38,7 @@
 </head>
 <body class="bg-light">
 
-<!-- ✅ 右カラム：点数・合計・操作 -->
+<!-- ✅ 左カラム：点数・合計・操作 -->
 <div class="fixed-sidebar">
     <div>
         <h5>点数：{{ cart_count }}点</h5>
@@ -56,7 +54,7 @@
     </div>
 </div>
 
-<!-- ✅ 左・中央エリア：確認内容 -->
+<!-- ✅ 右カラム：確認内容 -->
 <div class="main-content">
     <h2 class="mb-4">注文内容の確認</h2>
 
@@ -64,7 +62,7 @@
         <thead class="table-light">
             <tr>
                 <th>商品名</th>
-                <th>カラー</th>
+                <th>カラー</th> 
                 <th>サイズ</th>
                 <th>数量</th>
                 <th>小計</th>
@@ -74,7 +72,7 @@
             {% for item in cart_items %}
                 <tr>
                     <td>{{ item.product.name }}</td>
-                    <td>{{ item.color or '-' }}</td>
+                    <td>{{ item.color or '-' }}</td>  <!-- 追加 -->
                     <td>{{ item.size or '-' }}</td>
                     <td>{{ item.quantity }}</td>
                     <td>¥{{ item.subtotal }}</td>
