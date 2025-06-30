@@ -6,7 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import base64
 import json
-import ramdom
+import random
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
