@@ -6,6 +6,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 import base64
 import json
+import ramdom
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
@@ -68,10 +69,18 @@ def reset_session():
     session.clear()
     return "セッションを初期化しました"
 
+@app.route('/', methods=['GET', 'POST'])
+def start():
+    if request.method == 'POST':
+        log_action("実験開始", page="start")
+        return redirect(url_for("input_id"))
+    return render_template("start.html")
 
-@app.route('/')
+
+@app.route('/input_id')
 def input_id():
     return render_template('input_id.html')
+
 
 @app.route('/set_id', methods=['POST'])
 def set_participant_id():
@@ -93,24 +102,49 @@ def set_participant_id():
 @app.route('/confirm_id', methods=['GET', 'POST'])
 def confirm_id():
     participant_id = session.get("participant_id", "")
+    condition = request.args.get("condition", "")
+    if participant_id and condition:
+        session["participant_id"] = participant_id
+        session["condition"] = condition
+   
     if not participant_id:
         return redirect(url_for("input_id"))
+    
     return render_template("confirm_id.html", participant_id=participant_id)
+
+
 
 @app.route('/index', methods=['GET', 'POST'])
 def index():
+    if 'condition' not in session:
+        session['condition'] = random.choice(['control', 'experiment'])    
+        print(f"🎯 Assigned new condition: {session['condition']}")  # ★ ここを追加
+
+    print(f"🧭 Current session condition: {session['condition']}")  # ★ 常に出力
+
+
     products = load_products()
     cart = session.get("cart", [])
     cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
 
+    if 'condition' not in session:
+        session['condition'] = random.choice(['experiment', 'control'])
+
     if request.method == 'POST':
-        log_action("商品一覧表示", page="一覧")
-    return render_template('index.html', products=products, cart_count=cart_count)
+        log_action("商品一覧表示", page="一覧", products=[], quantities=[], subtotals=[])
+
+    if session["condition"] == "control":
+        return render_template('control_index.html', products=products, cart_count=cart_count)
+    else:
+        return render_template('index.html', products=products, cart_count=cart_count)
 
 @app.route('/product/<product_id>', methods=['GET', 'POST'])
 def product_detail(product_id):
     products = load_products()
     product = next((p for p in products if p["id"] == product_id), None)
+    if not product:
+        return "商品が見つかりませんでした", 404
+    
     specs_data = load_specs()
     cart = session.get("cart", [])
     cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
@@ -119,30 +153,36 @@ def product_detail(product_id):
     image_list = []
 
     if product and product.get("image"):
-        base_prefix = product["image"].rsplit(".", 1)[0]  # 例: "towel_b"
+        base_prefix = product["image"].rsplit(".", 1)[0]  # 例: towel_b
         color_list = product.get("colors", [])
         default_color = color_list[0] if color_list else ""
 
         # 1枚目：カラーバリエーション画像（towel_b_sand-beige_1.jpg）
         first_image = f"{base_prefix}_{default_color}_1.jpg"
-        image_list.append(first_image)
+        image_folder = os.path.join("static", "images")
+        if os.path.exists(os.path.join(image_folder, first_image)):
+            image_list.append(first_image)
 
         # 2枚目以降：共通画像（towel_b_2.jpg, towel_b_3.jpg, ...）
         for i in range(2, 6):  # 2〜5枚目まで
             filename = f"{base_prefix}_{i}.jpg"
-            image_list.append(filename)
+            if os.path.exists(os.path.join(image_folder, filename)):
+                image_list.append(filename)
 
     if request.method == 'POST':
         log_action(f"商品詳細表示: {product_id}", page="詳細")
 
+    template_name = 'control_product.html' if session.get("condition") == 'control' else 'product.html' 
+
     return render_template(
-        'product.html',
+        template_name,
         product=product,
         cart_count=cart_count,
         specs=specs_data.get(product_id, "(商品説明がありません)"),
         image_list=image_list,
-        base_prefix=base_prefix  # ← HTML に渡す
+        base_prefix=base_prefix  # JSに渡す
     )
+
 
 
 
@@ -258,8 +298,10 @@ def cart():
                    quantities=[item["quantity"] for item in cart_items],
                    subtotals=[item["subtotal"] for item in cart_items])
     
+    template_name = 'control_cart.html' if session.get("condition") == 'control' else 'cart.html'
+
     return render_template(
-        'cart.html', 
+        template_name, 
         cart_items=cart_items, 
         total=total, 
         cart_count=cart_count,
@@ -353,7 +395,10 @@ def confirm():
             cart_count += quantity
 
     log_action("購入確認画面表示", page="確認")
-    return render_template("confirm.html", cart_items=cart_items, cart_count=cart_count, total=total)
+
+    template_name = 'control_confirm.html' if session.get("condition") == 'control' else 'confirm.html'
+
+    return render_template(template_name, cart_items=cart_items, cart_count=cart_count, total=total)
 
 
 @app.route('/complete', methods=['POST'])
@@ -406,8 +451,21 @@ def complete():
 
 @app.route('/thanks', methods=['GET', 'POST'])
 def thanks():
+    condition = session.get('condition', 'experiment')
+    template_name = 'control_thanks.html'  if condition == 'control' else 'thanks.html'
     log_action("購入完了", page="完了")
-    return render_template('thanks.html', cart_count=0)
+    return render_template(template_name, cart_count=0)
+
+
+@app.route('/form_embed')
+def form_embed():
+    participant_id = session.get("participant_id", "")
+    condition = session.get("condition", "")
+    log_action('Googleフォーム埋め込み表示', page='/form_embed')
+    return render_template('googleform.html', 
+                           participant_id=participant_id,
+                           condition=condition)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
