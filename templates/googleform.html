@@ -75,7 +75,12 @@
         <hr>
         <h3>アンケートのご回答ありがとうございました</h3>
         <p>次のステップに進んでください：</p>
-        <form method="GET" action="https://experiment-site-1j72.onrender.com/">
+
+   　   {% if session.get("from_previous") == "1" %}
+            <form method="GET" action="{{ url_for('finish') }}" onsubmit="return confirmSubmit();">        
+        {% else %}
+            <form method="GET" action="https://experiment-site-1j72.onrender.com/" onsubmit="return confirmSubmit();">
+        {% endif %}
             <input type="hidden" name="from_previous" value="1">
             <input type="hidden" name="participant_id" value="{{ participant_id }}">
             <input type="hidden" name="condition" value="{{ session['condition'] }}">
@@ -106,7 +111,7 @@
         function confirmSubmit() {
             return confirm("アンケートの回答は完了していますか？\n未回答のまま進むとデータが記録されません。");
         }
-        
+
     </script>
 </body>
 </html>
