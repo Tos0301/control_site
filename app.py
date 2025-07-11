@@ -131,29 +131,30 @@ def confirm_id():
 def index():
     if 'condition' not in session:
         session['condition'] = random.choice(['control', 'experiment'])    
-        print(f"🎯 Assigned new condition: {session['condition']}")  # ★ ここを追加
+        print(f"🎯 Assigned new condition: {session['condition']}")
 
-    print(f"🧭 Current session condition: {session['condition']}")  # ★ 常に出力
-
+    print(f"🧭 Current session condition: {session['condition']}")
 
     products = load_products()
-    
-    for product in products:
-        base_prefix = product["image"].rsplit("_", 1)[0]  # 例: "mag_a"
-        colors = product.get("colors", [])
-        
-        if colors:
-            selected_color = random.choice(colors)
-            product["random_color_image"] = f"{base_prefix}_{selected_color}_1.jpg"
-        else:
-            product["random_color_image"] = product["image"]  # 元の画像をそのまま使う
 
+    for product in products:
+        image = product["image"]
+        colors = product.get("colors", [])
+
+        # base_prefixを安全に抽出
+        if image.count("_") >= 2 and image.endswith("_1.jpg"):
+            base_prefix = "_".join(image.split("_")[:-2])  # 例: towel_b_red_1.jpg → towel_b
+            if colors:
+                selected_color = random.choice(colors)
+                product["random_color_image"] = f"{base_prefix}_{selected_color}_1.jpg"
+            else:
+                product["random_color_image"] = image
+        else:
+            # 色付き画像名でない場合は元画像を使う
+            product["random_color_image"] = image
 
     cart = session.get("cart", [])
     cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
-
-    if 'condition' not in session:
-        session['condition'] = random.choice(['experiment', 'control'])
 
     if request.method == 'POST':
         log_action("商品一覧表示", page="一覧", products=[], quantities=[], subtotals=[])
@@ -162,6 +163,7 @@ def index():
         return render_template('control_index.html', products=products, cart_count=cart_count)
     else:
         return render_template('index.html', products=products, cart_count=cart_count)
+
 
 @app.route('/product/<product_id>', methods=['GET', 'POST'])
 def product_detail(product_id):
