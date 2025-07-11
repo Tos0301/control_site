@@ -137,6 +137,18 @@ def index():
 
 
     products = load_products()
+    
+    for product in products:
+        base_prefix = product["image"].rsplit("_", 1)[0]  # 例: "mag_a"
+        colors = product.get("colors", [])
+        
+        if colors:
+            selected_color = random.choice(colors)
+            product["random_color_image"] = f"{base_prefix}_{selected_color}_1.jpg"
+        else:
+            product["random_color_image"] = product["image"]  # 元の画像をそのまま使う
+
+
     cart = session.get("cart", [])
     cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
 
