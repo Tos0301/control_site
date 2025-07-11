@@ -142,17 +142,19 @@ def index():
         colors = product.get("colors", [])
 
         # base_prefixを安全に抽出
-        if image.count("_") >= 2 and image.endswith("_1.jpg"):
-            base_prefix = "_".join(image.split("_")[:-2])  # 例: towel_b_red_1.jpg → towel_b
-            if colors:
-                selected_color = random.choice(colors)
-                product["random_color_image"] = f"{base_prefix}_{selected_color}_1.jpg"
-            else:
-                product["random_color_image"] = image
+        # .jpg を除去して base_prefix を作成（例: towel_b）
+        if image.endswith(".jpg"):
+            base_prefix = image[:-4]  # ".jpg" を除去
         else:
-            # 色付き画像名でない場合は元画像を使う
-            product["random_color_image"] = image
+            base_prefix = image
 
+        # カラーがあればランダムなカラーバリエーション画像を指定
+        if colors:
+            selected_color = random.choice(colors)
+            product["random_color_image"] = f"{base_prefix}_{selected_color}_1.jpg"
+        else:
+            product["random_color_image"] = image
+            
     cart = session.get("cart", [])
     cart_count = sum(item['quantity'] for item in cart if isinstance(item, dict) and 'quantity' in item)
 
