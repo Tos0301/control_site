@@ -155,6 +155,12 @@
     <div class="product-detail-section bg-light border rounded p-4 mt-4">
         <h5>商品詳細</h5>
         <p style="white-space: pre-line;">{{ product.detail | replace('\\n', '\n') }}</p>
+
+        {% if product.image_source %}
+        <p class="text-end mt-3" style="font-size: 0.85em; color: #666; word-break: break-word;">
+            画像引用元：{{ product.image_source }}</a>
+        </p>
+        {% endif %}
     </div>
     {% endif %}
 </div>
