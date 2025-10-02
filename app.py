@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, flash
 import csv, os
 import pandas as pd
 import datetime
@@ -26,7 +26,7 @@ credentials = Credentials.from_service_account_info(service_info, scopes=scopes)
 gc = gspread.authorize(credentials)
 worksheet = gc.open_by_key(spreadsheet_id).sheet1
 
-ID_PATTERN = re.compile(r"^[A-Za-z0-9\-_.]{4,32}$")
+ID_PATTERN = re.compile(r"^[A-Za-z0-9\-_.]{12}$")
 
 PROTECTED_ENDPOINTS = {
     "index", "product_detail", "go_product", "go_cart",
@@ -153,7 +153,7 @@ def set_participant_id():
 
     # 形式チェック（必要なければ外してOK）
     if not ID_PATTERN.fullmatch(participant_id):
-        # 必要に応じて flash メッセージを出すならここで
+        flash("参加者IDの文字数または形式が正しくありません。（12文字・半角英数字のみ使用可能です）", "danger")
         return redirect(url_for("input_id"))
 
     session["participant_id"] = participant_id
