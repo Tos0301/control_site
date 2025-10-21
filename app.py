@@ -9,6 +9,11 @@ import json
 import random
 import re
 import unicodedata
+import time
+
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "CHANGE_ME")  # GASと一致させる
+GOOGLE_FORM_BASE_URL = os.getenv("GOOGLE_FORM_BASE_URL", "")  # 例: https://docs.google.com/forms/d/e/.../viewform
+DEST_ROUTE_AFTER_FORM = os.getenv("DEST_ROUTE_AFTER_FORM", "finish")  # 回答後に進めたいルート名
 
 app = Flask(__name__)
 app.secret_key = 'secret_key'
@@ -34,6 +39,18 @@ PROTECTED_ENDPOINTS = {
     "confirm", "complete", "thanks", "form_embed",
     "back_to_index", "back_to_cart", "cart_count"
 }
+
+# 提出フラグの簡易ストア（Render単一インスタンス想定。将来はRedis推奨）
+form_status = {}  # { pid: {"done": True, "ts": 1690000000} }
+
+def mark_form_submitted(pid: str):
+    form_status[pid] = {"done": True, "ts": int(time.time())}
+
+def is_form_submitted(pid: str) -> bool:
+    return bool(form_status.get(pid, {}).get("done"))
+# ---- 追加ここまで ----
+
+
 
 def normalize_id(s: str) -> str:
     if not s:
@@ -135,7 +152,7 @@ def input_id():
 @app.before_request
 def require_participant_id():
     # ID入力や開始画面、静的ファイルは除外
-    if request.endpoint in { "start", "input_id", "set_participant_id", "reset_session", "static", "confirm_id" }:
+    if request.endpoint in { "start", "input_id", "set_participant_id", "reset_session", "static", "confirm_id", "notify_form_submit", "form_status_api"}:
         return
     # 前サイトスキップ経路（start→confirm_id）も考慮して、confirm_idまでは許容
     if request.endpoint in PROTECTED_ENDPOINTS and not session.get("participant_id"):
@@ -545,6 +562,7 @@ def form_embed():
     condition = session.get("condition", "")
     from_previous = request.args.get("from_previous", session.get("from_previous", ""))
 
+
     if from_previous:
         session["from_previous"] = from_previous
 
@@ -555,8 +573,46 @@ def form_embed():
         'googleform.html', 
         participant_id=participant_id,
         condition=condition,
-        from_previous=from_previous
+        from_previous=from_previous,
+        google_form_url=GOOGLE_FORM_BASE_URL,
+        pid=participant_id
     )
+
+# ---- 追加ここから ----
+@app.post("/notify_form_submit")
+def notify_form_submit():
+    # Google Apps Script からの通知（ヘッダで簡易保護）
+    secret = request.headers.get("X-Webhook-Secret")
+    if secret != WEBHOOK_SECRET:
+        return "forbidden", 403
+
+    pid = request.form.get("pid") if request.form else None
+    if not pid and request.is_json:
+        data = request.get_json(silent=True) or {}
+        pid = data.get("pid")
+
+    if not pid:
+        return "bad request: missing pid", 400
+
+    mark_form_submitted(pid)
+    return "ok", 200
+
+
+@app.get("/form_status/<pid>")
+def form_status_api(pid):
+    return jsonify({"done": is_form_submitted(pid)})
+
+
+@app.get("/guard_to_next")
+def guard_to_next():
+    # 「次へ」ボタン押下時に、提出済みかサーバで最終確認してから遷移
+    pid = session.get("participant_id") or request.args.get("pid")
+    if not pid:
+        return "no participant_id", 400
+    if not is_form_submitted(pid):
+        return "form not submitted", 403
+    return redirect(url_for(DEST_ROUTE_AFTER_FORM))
+# ---- 追加ここまで ----
 
 @app.route("/finish")
 def finish():
