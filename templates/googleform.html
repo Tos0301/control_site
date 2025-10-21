@@ -92,54 +92,63 @@
   <script>
     // クリップボード
     function copyToClipboard() {
-      const idText = document.getElementById("participantId").innerText;
-      navigator.clipboard.writeText(idText).then(showToast, () => alert("コピーに失敗しました"));
+        const idText = document.getElementById("participantId").innerText;
+        navigator.clipboard.writeText(idText).then(showToast, () => alert("コピーに失敗しました"));
     }
     function showToast() {
-      const toast = document.getElementById("toast");
-      toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 2500);
+        const toast = document.getElementById("toast");
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2500);
     }
     function confirmSubmit() {
-      return confirm(
+        return confirm(
         "質問項目への回答は完了していますか？\n" +
         "フォームは全部で5から6ページございます。\n" +
         "必ず「回答を記録しました」と表示されるまで回答をお願いします。\n" +
         "未回答のまま進むとデータが記録されません。"
-      );
+        );
     }
 
-    // 回答完了ポーリング（/form_status/<pid>）
-    const pid = "{{ participant_id }}";
-    let popped = false;
+     // ---- 回答完了ポーリング（絶対URLで） ----
+    document.addEventListener("DOMContentLoaded", () => {
+        const pid = "{{ participant_id }}";
+        const baseUrl = window.location.origin;  // 例: https://control-site.onrender.com
+        let popped = false;
 
-    async function pollSubmit() {
-      try {
-        const res = await fetch(`/form_status/${pid}`, { cache: "no-store" });
-        const data = await res.json();
-        if (data.done && !popped) {
-          popped = true;
+        async function pollSubmit() {
+        try {
+            const res = await fetch(`${baseUrl}/form_status/${encodeURIComponent(pid)}`, { cache: "no-store" });
+            // 念のため Content-Type を見てHTML誤応答を検知
+            const ct = res.headers.get("content-type") || "";
+            if (!ct.includes("application/json")) throw new Error("non-json response");
+            const data = await res.json();
+            console.log("Form status:", data);
 
-          // 1) モーダルを表示（メイン導線）
-          const modal = new bootstrap.Modal(
-            document.getElementById('afterSubmitModal'),
-            { backdrop: 'static', keyboard: false }
-          );
-          modal.show();
+            if (data.done && !popped) {
+            popped = true;
 
-          // 2) 予備導線：セクションも表示
-          const fallback = document.getElementById('next-section');
-          if (fallback) fallback.style.display = 'block';
+            // モーダル表示
+            const modalEl = document.getElementById('afterSubmitModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+                modal.show();
+            }
 
-          return; // 以降ポーリング停止
+            // 予備導線を表示
+            const fallback = document.getElementById('next-section');
+            if (fallback) fallback.style.display = 'block';
+
+            return; // ポーリング停止
+            }
+        } catch (e) {
+            console.warn("Polling error:", e);
         }
-      } catch (e) {
-        // 通信エラーは無視して再試行
-      }
-      setTimeout(pollSubmit, 3000); // 3秒おき
-    }
-    pollSubmit();
-  </script>
+        setTimeout(pollSubmit, 3000);
+        }
+
+        pollSubmit();
+    });
+    </script>
 </body>
 </html>
 
