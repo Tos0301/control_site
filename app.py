@@ -11,7 +11,7 @@ import re
 import unicodedata
 import time
 
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "CHANGE_ME")  # GASと一致させる
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "12characterPSKey")
 GOOGLE_FORM_BASE_URL = os.getenv("GOOGLE_FORM_BASE_URL", "")  # 例: https://docs.google.com/forms/d/e/.../viewform
 DEST_ROUTE_AFTER_FORM = os.getenv("DEST_ROUTE_AFTER_FORM", "finish")  # 回答後に進めたいルート名
 
