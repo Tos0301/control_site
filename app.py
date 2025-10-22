@@ -581,6 +581,30 @@ def form_embed():
         pid=participant_id
     )
 
+@app.post("/notify_form_submit")
+def notify_form_submit():
+    # Google Apps Script からの通知（ヘッダで簡易保護）
+    secret = request.headers.get("X-Webhook-Secret")
+    if secret != WEBHOOK_SECRET:
+        return "forbidden", 403
+
+    pid = request.form.get("pid") if request.form else None
+    if not pid and request.is_json:
+        data = request.get_json(silent=True) or {}
+        pid = data.get("pid")
+
+    if not pid:
+        print("[WEBHOOK] missing pid")
+        return "bad request: missing pid", 400
+
+    mark_form_submitted(pid)
+    return "ok", 200
+
+
+@app.get("/form_status/<pid>")
+def form_status_api(pid):
+    return jsonify({"done": is_form_submitted(pid)})
+
 @app.get("/guard_to_next")
 def guard_to_next():
     """
