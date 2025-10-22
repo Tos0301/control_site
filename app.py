@@ -592,6 +592,7 @@ def notify_form_submit():
         pid = data.get("pid")
 
     if not pid:
+        print("[WEBHOOK] missing pid")
         return "bad request: missing pid", 400
 
     mark_form_submitted(pid)
