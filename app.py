@@ -16,7 +16,7 @@ from urllib.parse import urlencode
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "12characterPSKey")
 GOOGLE_FORM_BASE_URL = os.getenv("GOOGLE_FORM_BASE_URL", "")  # 例: https://docs.google.com/forms/d/e/.../viewform
 DEST_ROUTE_AFTER_FORM = os.getenv("DEST_ROUTE_AFTER_FORM", "finish")  # 回答後に進めたいルート名
-COUNTERPART_BASE_URL = os.getenv("COUNTERPART_BASE_URL", "https://control-site.onrender.com")
+COUNTERPART_BASE_URL = os.getenv("COUNTERPART_BASE_URL", "https://experiment-site-1j72.onrender.com")
 
 
 app = Flask(__name__)
